@@ -18,6 +18,10 @@ where
     SPI: SpiDevice,
     DC: OutputPin,
 {
+    if x0 > x1 || y0 > y1 {
+        return Err(Error::OutOfBounds);
+    }
+
     let actual_x0 = x0 + x_offset;
     let actual_x1 = x1 + x_offset;
     let actual_y0 = y0 + y_offset;
@@ -107,5 +111,15 @@ mod tests {
         let written = iface.spi.written_bytes();
         assert!(written.windows(5).any(|w| w == [0x2A, 0x00, 0x00, 0x00, 0xEF]));
         assert!(written.windows(5).any(|w| w == [0x2B, 0x00, 0x00, 0x00, 0xEF]));
+    }
+
+    #[test]
+    fn set_address_window_invalid_bounds() {
+        let spi = MockSpi::new();
+        let dc = MockPin::new();
+        let mut iface = SpiInterface::new(spi, dc);
+
+        let result = set_address_window(&mut iface, 50, 20, 10, 80, 0, 0);
+        assert_eq!(result.unwrap_err(), Error::OutOfBounds);
     }
 }

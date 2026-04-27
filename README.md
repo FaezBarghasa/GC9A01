@@ -16,7 +16,7 @@ This crate is structured to cleanly separate concerns:
 
 - **`interface::SpiInterface`**: Handles low-level SPI communication and Data/Command (`DC`) pin toggling.
 - **`config::DisplayConfig`**: Configuration struct for modifying the behavior of the display (e.g., orientation).
-- **`display::GC9A01`**: The main struct representing the display. It implements the initialization sequence and the `DrawTarget` trait for `embedded-graphics`.
+- **`display::Display`**: The main struct representing the display. It implements the initialization sequence and the `DrawTarget` trait for `embedded-graphics`.
 
 ## Quick Start
 
@@ -39,7 +39,7 @@ Here is a minimal example of initializing the display and drawing some simple gr
 
 use GC9A01::{
     config::DisplayConfig,
-    display::GC9A01,
+    display::Display,
     interface::SpiInterface,
 };
 use embedded_graphics::{
@@ -85,26 +85,28 @@ fn main() -> ! {
     let dc = gpioa.pa3.into_push_pull_output(&mut gpioa.crl);
     let rst = gpioa.pa2.into_push_pull_output(&mut gpioa.crl);
 
-    // 3. Initialize SPI
+    // 3. Setup Backlight Pin
+    let bl = gpioa.pa1.into_push_pull_output(&mut gpioa.crl);
+
+    // 4. Initialize SPI
     let spi_mode = Mode {
         polarity: Polarity::IdleLow,
         phase: Phase::CaptureOnFirstTransition,
     };
     let spi = Spi::spi1(dp.SPI1, (sck, miso, mosi), &mut gpioa.mapr, spi_mode, 10.mhz(), clocks);
 
-    // 4. Create a delay provider
+    // 5. Create a delay provider
     let mut delay = Delay::new(cp.SYST, clocks);
 
-    // 5. Initialize the display interface and the display itself
-    let interface = SpiInterface::new(spi, dc);
+    // 6. Initialize the display interface and the display itself
     let config = DisplayConfig::default();
-    let mut display = GC9A01::new(interface, rst, config);
+    let mut display = Display::new(spi, dc, rst, bl, config);
 
-    // 6. Initialize the hardware and clear the screen
+    // 7. Initialize the hardware and clear the screen
     display.init(&mut delay).unwrap();
     display.clear(Rgb565::BLACK).unwrap();
 
-    // 7. Draw graphics!
+    // 8. Draw graphics!
     let style = PrimitiveStyle::with_stroke(Rgb565::RED, 3);
     Circle::new(Point::new(60, 60), 120)
         .into_styled(style)
@@ -128,9 +130,3 @@ An example project exists under the `example/` directory. If you have an STM32F1
 cd example/strm32f103\(bulepill\)
 cargo run
 ```
-
-## License
-
-Licensed under either of:
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)

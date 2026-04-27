@@ -1,3 +1,9 @@
+//! Display implementation
+//!
+//! This module contains the `Display` struct which provides a high-level API to interact with the GC9A01 display.
+//! It handles initialization, primitive drawing operations like filling areas or the whole screen, and
+//! delegates pixel rendering to `SpiInterface`.
+
 use crate::error::Error;
 use crate::config::{DisplayConfig, Orientation};
 use crate::interface::SpiInterface;
@@ -9,6 +15,9 @@ use embedded_hal::digital::OutputPin;
 use embedded_hal::spi::SpiDevice;
 
 /// High-level driver for the GC9A01 display.
+///
+/// Provides methods to initialize the display, send commands, and draw primitives.
+/// It wraps the `SpiInterface` and manages the reset and backlight pins.
 pub struct Display<SPI, DC, RST, BL> {
     pub(crate) iface: SpiInterface<SPI, DC>,
     pub(crate) rst: RST,
@@ -24,6 +33,13 @@ where
     BL: OutputPin<Error = PinE>,
 {
     /// Creates a new display instance.
+    ///
+    /// # Arguments
+    /// * `spi` - SPI device implementing `embedded_hal::spi::SpiDevice`
+    /// * `dc` - Data/Command pin implementing `embedded_hal::digital::OutputPin`
+    /// * `rst` - Reset pin implementing `embedded_hal::digital::OutputPin`
+    /// * `bl` - Backlight pin implementing `embedded_hal::digital::OutputPin`
+    /// * `config` - `DisplayConfig` containing orientation and other settings
     pub fn new(spi: SPI, dc: DC, rst: RST, bl: BL, config: DisplayConfig) -> Self {
         Self {
             iface: SpiInterface { spi, dc },
@@ -34,6 +50,10 @@ where
     }
 
     /// Returns the current logical size of the display based on orientation.
+    ///
+    /// The size is calculated by checking the current `Orientation` in the `DisplayConfig`.
+    /// For portrait modes, width and height are returned as configured. For landscape modes,
+    /// width and height are swapped.
     pub fn size(&self) -> (u16, u16) {
         match self.config.orientation {
             Orientation::Portrait | Orientation::PortraitFlipped => (self.config.width, self.config.height),
@@ -45,6 +65,12 @@ where
     ///
     /// Performs a hardware reset, runs the vendor initialization sequence,
     /// configures orientation/color order, and enables the backlight.
+    ///
+    /// # Arguments
+    /// * `delay` - Delay provider implementing `embedded_hal::delay::DelayNs`
+    ///
+    /// # Errors
+    /// Returns an `Error` if any SPI communication or pin manipulation fails.
     pub fn init<D>(&mut self, delay: &mut D) -> Result<(), Error<SPI::Error, DC::Error>>
     where
         D: DelayNs,
@@ -94,6 +120,12 @@ where
     BL: OutputPin<Error = PinE>,
 {
     /// Fills the entire display with a single solid color.
+    ///
+    /// # Arguments
+    /// * `color` - The `Rgb565` color to fill the screen with.
+    ///
+    /// # Errors
+    /// Returns an `Error` if SPI communication fails while setting the address window or writing pixels.
     pub fn clear(&mut self, color: Rgb565) -> Result<(), Error<SPI::Error, DC::Error>> {
         let color_u16 = color.into_storage();
         let (width, height) = self.size();
@@ -113,6 +145,16 @@ where
     }
 
     /// Fills a specified rectangular area with a single solid color.
+    ///
+    /// The rectangle will be clipped to the display boundaries to prevent writing outside
+    /// the visible area.
+    ///
+    /// # Arguments
+    /// * `area` - The `Rectangle` defining the bounds to fill.
+    /// * `color` - The `Rgb565` color to fill the area with.
+    ///
+    /// # Errors
+    /// Returns an `Error` if SPI communication fails while setting the address window or writing pixels.
     pub fn fill_solid(
         &mut self,
         area: Rectangle,

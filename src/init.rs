@@ -73,6 +73,12 @@ where
     let mut cursor = 0;
     while cursor < VENDOR_INIT_BYTECODE.len() {
         let cmd = VENDOR_INIT_BYTECODE[cursor];
+
+        // Ensure we don't read out of bounds for the param_count
+        if cursor + 1 >= VENDOR_INIT_BYTECODE.len() {
+            return Err(Error::InvalidConfig);
+        }
+
         let num_params = VENDOR_INIT_BYTECODE[cursor + 1] as usize;
         let start_params = cursor + 2;
         let end_params = start_params + num_params;
