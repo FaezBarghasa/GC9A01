@@ -1,14 +1,20 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+#![no_std]
+#![warn(missing_docs)]
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+//! A highly optimized, no_std driver for the GC9A01 240x240 SPI TFT display.
+//! Uses embedded-hal 1.x and embedded-graphics-core 0.4.
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod address_window;
+pub mod backlight;
+pub mod color;
+pub mod commands;
+pub mod config;
+pub mod display;
+pub mod error;
+pub mod graphics;
+pub mod init;
+pub mod interface;
+pub mod reset;
+
+// Re-export core types for easy access
+pub use config::{ColorOrder, DisplayConfig, Orientation};

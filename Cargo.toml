@@ -2,5 +2,17 @@
 name = "GC9A01"
 version = "0.1.0"
 edition = "2024"
+description = "A no_std embedded-hal 1.x driver for the GC9A01 240x240 SPI TFT display"
+license = "MIT OR Apache-2.0"
+categories = ["embedded", "no-std", "hardware-support"]
 
 [dependencies]
+embedded-hal = "1.0"
+embedded-graphics-core = "0.4"
+
+[dev-dependencies]
+criterion = "0.8"
+
+[[bench]]
+name = "clear_bench"
+harness = false
