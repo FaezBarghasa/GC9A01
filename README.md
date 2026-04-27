@@ -2,6 +2,8 @@
 
 A `no_std` `embedded-hal` 1.x driver for the GC9A01 240x240 SPI TFT display.
 
+for small flash sizes like bluepill.
+
 This driver is based on the [Adafruit GFX library](https://github.com/adafruit/Adafruit-GFX-Library) and the [Adafruit GC9A01 library](https://github.com/adafruit/Adafruit_GC9A01A).
 
 ## License
