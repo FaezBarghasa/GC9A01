@@ -1,11 +1,11 @@
 #![no_std]
 #![warn(missing_docs)]
 
-#[cfg(test)]
-extern crate std;
-
 //! A highly optimized, no_std driver for the GC9A01 240x240 SPI TFT display.
 //! Uses embedded-hal 1.x and embedded-graphics-core 0.4.
+
+#[cfg(test)]
+extern crate std;
 
 pub mod address_window;
 pub mod backlight;

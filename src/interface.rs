@@ -90,6 +90,7 @@ where
 #[cfg(test)]
 pub(crate) mod test_utils {
     extern crate std;
+    use std::vec;
     use std::vec::Vec;
     use super::*;
     use embedded_hal::spi::SpiDevice;
@@ -161,6 +162,7 @@ mod tests {
     use super::*;
     use super::test_utils::*;
     use std::vec;
+    use std::vec::Vec;
 
     #[test]
     fn test_send_command_drives_dc_low() {

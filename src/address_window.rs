@@ -56,7 +56,6 @@ where
 #[cfg(test)]
 mod tests {
     extern crate std;
-    use std::vec::Vec;
     use super::*;
     use crate::interface::test_utils::{MockPin, MockSpi};
     use crate::interface::SpiInterface;

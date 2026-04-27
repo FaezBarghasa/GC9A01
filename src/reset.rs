@@ -30,6 +30,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::vec;
+    use std::vec::Vec;
     use core::convert::Infallible;
 
     struct MockPin {
