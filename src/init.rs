@@ -98,18 +98,20 @@ mod tests {
     use core::convert::Infallible;
     use embedded_hal::spi::Operation;
 
-    struct MockSpi {
+    use core::cell::Cell;
+
+    struct MockSpi<'a> {
         pub logs: Vec<(u8, Vec<u8>)>, // (Command, Params)
         pub current_cmd: Option<u8>,
-        pub dc_is_high: bool,
+        pub dc_is_high: &'a Cell<bool>,
     }
 
-    impl embedded_hal::spi::ErrorType for MockSpi { type Error = Infallible; }
+    impl<'a> embedded_hal::spi::ErrorType for MockSpi<'a> { type Error = Infallible; }
 
-    impl SpiDevice for MockSpi {
+    impl<'a> SpiDevice for MockSpi<'a> {
         fn transaction(&mut self, _ops: &mut [Operation<'_, u8>]) -> Result<(), Self::Error> { Ok(()) }
         fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
-            if !self.dc_is_high {
+            if !self.dc_is_high.get() {
                 self.current_cmd = Some(words[0]);
                 self.logs.push((words[0], Vec::new()));
             } else if let Some(_) = self.current_cmd {
@@ -121,21 +123,20 @@ mod tests {
         }
     }
 
-    struct MockPin<'a>(&'a mut MockSpi);
+    struct MockPin<'a>(&'a Cell<bool>);
     impl<'a> embedded_hal::digital::ErrorType for MockPin<'a> { type Error = Infallible; }
     impl<'a> OutputPin for MockPin<'a> {
-        fn set_low(&mut self) -> Result<(), Self::Error> { self.0.dc_is_high = false; Ok(()) }
-        fn set_high(&mut self) -> Result<(), Self::Error> { self.0.dc_is_high = true; Ok(()) }
+        fn set_low(&mut self) -> Result<(), Self::Error> { self.0.set(false); Ok(()) }
+        fn set_high(&mut self) -> Result<(), Self::Error> { self.0.set(true); Ok(()) }
     }
 
     #[test]
     fn test_bytecode_parser() {
-        let mut spi = MockSpi { logs: Vec::new(), current_cmd: None, dc_is_high: false };
-        {
-            let mut dc = MockPin(&mut spi);
-            let mut iface = SpiInterface { spi: &mut dc.0, dc: &mut dc };
-            run_vendor_init(&mut iface).unwrap();
-        }
+        let dc_is_high = Cell::new(false);
+        let mut spi = MockSpi { logs: Vec::new(), current_cmd: None, dc_is_high: &dc_is_high };
+        let mut dc = MockPin(&dc_is_high);
+        let mut iface = SpiInterface { spi: &mut spi, dc: &mut dc };
+        run_vendor_init(&mut iface).unwrap();
 
         // Verify specific entries in the bytecode
         // First command: 0xEF with 0 params
