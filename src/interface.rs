@@ -12,6 +12,13 @@ pub(crate) struct SpiInterface<SPI, DC> {
     pub(crate) dc: DC,
 }
 
+impl<SPI, DC> SpiInterface<SPI, DC> {
+    /// Creates a new SPI interface.
+    pub fn new(spi: SPI, dc: DC) -> Self {
+        Self { spi, dc }
+    }
+}
+
 impl<SPI, DC, SpiE, PinE> SpiInterface<SPI, DC>
 where
     SPI: SpiDevice<Error = SpiE>,
@@ -81,13 +88,26 @@ where
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod test_utils {
+    extern crate std;
+    use std::vec::Vec;
     use super::*;
+    use embedded_hal::spi::SpiDevice;
+    use embedded_hal::digital::OutputPin;
     use core::convert::Infallible;
     use embedded_hal::spi::Operation;
 
-    struct MockSpi {
+    pub struct MockSpi {
         pub written: Vec<u8>,
+    }
+
+    impl MockSpi {
+        pub fn new() -> Self {
+            Self { written: Vec::new() }
+        }
+        pub fn written_bytes(&self) -> &[u8] {
+            &self.written
+        }
     }
 
     impl embedded_hal::spi::ErrorType for MockSpi {
@@ -104,15 +124,20 @@ mod tests {
             Ok(())
         }
 
-        // Override write directly to easily capture bytes in test
         fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
             self.written.extend_from_slice(words);
             Ok(())
         }
     }
 
-    struct MockPin {
+    pub struct MockPin {
         pub is_high: bool,
+    }
+
+    impl MockPin {
+        pub fn new() -> Self {
+            Self { is_high: false }
+        }
     }
 
     impl embedded_hal::digital::ErrorType for MockPin {
@@ -129,6 +154,13 @@ mod tests {
             Ok(())
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::test_utils::*;
+    use std::vec;
 
     #[test]
     fn test_send_command_drives_dc_low() {

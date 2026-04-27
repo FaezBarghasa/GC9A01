@@ -1,6 +1,6 @@
 //! Adapter implementing `embedded-graphics` DrawTarget and OriginDimensions traits.
 
-use core::fmt::Display;
+use crate::display::Display;
 use crate::error::Error;
 use embedded_graphics_core::{
     Pixel,
@@ -8,6 +8,7 @@ use embedded_graphics_core::{
     geometry::{OriginDimensions, Point, Size},
     pixelcolor::{IntoStorage, Rgb565},
     primitives::Rectangle,
+    prelude::PointsIter,
 };
 use embedded_hal::{digital::OutputPin, spi::SpiDevice};
 
@@ -51,8 +52,8 @@ where
 
                 // Temporarily borrow hardware for the interface
                 let mut iface = crate::interface::SpiInterface {
-                    spi: &mut self.spi,
-                    dc: &mut self.dc,
+                    spi: &mut self.iface.spi,
+                    dc: &mut self.iface.dc,
                 };
 
                 // Set a 1x1 address window
@@ -103,8 +104,8 @@ where
             let y1 = y0 + area.size.height as u16 - 1;
 
             let mut iface = crate::interface::SpiInterface {
-                spi: &mut self.spi,
-                dc: &mut self.dc,
+                spi: &mut self.iface.spi,
+                dc: &mut self.iface.dc,
             };
 
             crate::address_window::set_address_window(
@@ -144,7 +145,7 @@ where
             // Slow path (Fallback): Coordinates clip off-screen.
             // Map the colors back to physical Points and filter them against bounds natively.
             let pixels = area.points().zip(colors).map(|(p, c)| Pixel(p, c));
-            self.draw_iter(pixels.filter(|Pixel(p, _)| display_bounds.contains(*p)))?;
+            self.draw_iter(pixels.filter(|&Pixel(p, _)| display_bounds.contains(p)))?;
         }
 
         Ok(())
@@ -158,6 +159,7 @@ mod tests {
     use core::cell::Cell;
     use core::convert::Infallible;
     use embedded_hal::spi::Operation;
+    use embedded_graphics_core::pixelcolor::RgbColor;
 
     // Specialized tracker to observe SPI states
     struct Tracker {

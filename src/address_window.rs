@@ -55,8 +55,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+    use std::vec::Vec;
     use super::*;
-    use crate::interface::tests::{MockPin, MockSpi}; // Assuming test mocks exist here
+    use crate::interface::test_utils::{MockPin, MockSpi};
     use crate::interface::SpiInterface;
 
     #[test]
@@ -67,7 +69,7 @@ mod tests {
 
         set_address_window(&mut iface, 10, 20, 50, 80, 0, 0).unwrap();
 
-        let written = iface.spi().written_bytes();
+        let written = iface.spi.written_bytes();
         // CASET is 0x2A, RASET is 0x2B, RAMWR is 0x2C
         // Find CASET sequence and check data
         assert!(written.windows(5).any(|w| w == [0x2A, 0x00, 0x0A, 0x00, 0x32]));
@@ -81,7 +83,7 @@ mod tests {
 
         set_address_window(&mut iface, 5, 0, 10, 0, 2, 0).unwrap();
 
-        let written = iface.spi().written_bytes();
+        let written = iface.spi.written_bytes();
         assert!(written.windows(5).any(|w| w == [0x2A, 0x00, 0x07, 0x00, 0x0C]));
     }
 
@@ -92,8 +94,8 @@ mod tests {
         let mut iface = SpiInterface::new(spi, dc);
 
         set_address_window(&mut iface, 0, 0, 10, 10, 0, 0).unwrap();
-        let written_commands = iface.dc_low_writes(); // Hypothetical helper from Mock
-        assert_eq!(*written_commands.last().unwrap(), 0x2C);
+        let written = iface.spi.written_bytes();
+        assert_eq!(*written.last().unwrap(), 0x2C);
     }
 
     #[test]
@@ -103,7 +105,7 @@ mod tests {
         let mut iface = SpiInterface::new(spi, dc);
 
         set_address_window(&mut iface, 0, 0, 239, 239, 0, 0).unwrap();
-        let written = iface.spi().written_bytes();
+        let written = iface.spi.written_bytes();
         assert!(written.windows(5).any(|w| w == [0x2A, 0x00, 0x00, 0x00, 0xEF]));
         assert!(written.windows(5).any(|w| w == [0x2B, 0x00, 0x00, 0x00, 0xEF]));
     }

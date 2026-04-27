@@ -91,6 +91,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+    use std::vec::Vec;
     use super::*;
     use core::convert::Infallible;
     use embedded_hal::spi::Operation;
