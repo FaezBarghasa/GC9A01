@@ -2,11 +2,14 @@
 
 use crate::error::Error;
 use crate::interface::SpiInterface;
+use embedded_hal::delay::DelayNs;
 use embedded_hal::digital::OutputPin;
 use embedded_hal::spi::SpiDevice;
 
 /// Flash-optimized initialization bytecode.
 /// Format: [command, param_count, p1, p2, ... pN]
+/// If `command` is 0xFF and `param_count` is 0xFF, it represents a special delay command.
+/// In that case, `p1` represents the delay in milliseconds.
 ///
 /// This sequence is derived from vendor reference code for the GC9A01.
 /// It configures the internal oscillator, power levels, and gamma curves.
@@ -60,15 +63,19 @@ const VENDOR_INIT_BYTECODE: &[u8] = &[
     0x35, 0x01, 0x00,
     0x21, 0x00,
     0x11, 0x00,
+    // Add explicitly required delay after SLPOUT (0x11)
+    0xFF, 0xFF, 120,
 ];
 
 /// Interprets the compact bytecode and sends commands to the controller.
-pub(crate) fn run_vendor_init<SPI, DC, SpiE, PinE>(
+pub(crate) fn run_vendor_init<SPI, DC, SpiE, PinE, D>(
     iface: &mut SpiInterface<SPI, DC>,
+    delay: &mut D,
 ) -> Result<(), Error<SpiE, PinE>>
 where
     SPI: SpiDevice<Error = SpiE>,
     DC: OutputPin<Error = PinE>,
+    D: DelayNs,
 {
     let mut cursor = 0;
     while cursor < VENDOR_INIT_BYTECODE.len() {
@@ -80,6 +87,18 @@ where
         }
 
         let num_params = VENDOR_INIT_BYTECODE[cursor + 1] as usize;
+
+        // Check for special delay command
+        if cmd == 0xFF && num_params == 0xFF {
+            if cursor + 2 >= VENDOR_INIT_BYTECODE.len() {
+                return Err(Error::InvalidConfig);
+            }
+            let delay_ms = VENDOR_INIT_BYTECODE[cursor + 2] as u32;
+            delay.delay_ms(delay_ms);
+            cursor += 3;
+            continue;
+        }
+
         let start_params = cursor + 2;
         let end_params = start_params + num_params;
 
@@ -136,13 +155,19 @@ mod tests {
         fn set_high(&mut self) -> Result<(), Self::Error> { self.0.set(true); Ok(()) }
     }
 
+    struct MockDelay;
+    impl DelayNs for MockDelay {
+        fn delay_ns(&mut self, _ns: u32) {}
+    }
+
     #[test]
     fn test_bytecode_parser() {
         let dc_is_high = Cell::new(false);
         let mut spi = MockSpi { logs: Vec::new(), current_cmd: None, dc_is_high: &dc_is_high };
         let mut dc = MockPin(&dc_is_high);
+        let mut delay = MockDelay;
         let mut iface = SpiInterface { spi: &mut spi, dc: &mut dc };
-        run_vendor_init(&mut iface).unwrap();
+        run_vendor_init(&mut iface, &mut delay).unwrap();
 
         // Verify specific entries in the bytecode
         // First command: 0xEF with 0 params
@@ -153,7 +178,7 @@ mod tests {
         assert_eq!(spi.logs[1].0, 0xEB);
         assert_eq!(spi.logs[1].1, vec![0x14]);
 
-        // Final commands should be SLPOUT (0x11)
+        // Final commands before delay should be SLPOUT (0x11)
         assert_eq!(spi.logs.last().unwrap().0, 0x11);
     }
 }

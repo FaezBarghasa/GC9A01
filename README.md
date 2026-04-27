@@ -9,6 +9,8 @@ This library is designed to work seamlessly with `embedded-graphics` to provide 
 - **`no_std` Support**: Designed for bare-metal embedded systems.
 - **`embedded-hal` 1.x**: Built on the latest standard for Rust embedded hardware abstractions.
 - **`embedded-graphics` Integration**: Fully implements `embedded-graphics`'s `DrawTarget` trait, enabling rich graphical elements right out of the box.
+- **Hardware Optimized**: Employs batched partial screen updates via `CASET` and `RASET` commands to dramatically speed up graphics rendering.
+- **Power Management**: Easy-to-use API to put the display to sleep and wake it up, perfect for battery-powered projects.
 
 ## Architecture
 
@@ -38,9 +40,8 @@ Here is a minimal example of initializing the display and drawing some simple gr
 #![no_main]
 
 use GC9A01::{
-    config::DisplayConfig,
+    config::{DisplayConfig, Orientation, ColorOrder},
     display::Display,
-    interface::SpiInterface,
 };
 use embedded_graphics::{
     mono_font::{ascii::FONT_10X20, MonoTextStyle},
@@ -99,7 +100,12 @@ fn main() -> ! {
     let mut delay = Delay::new(cp.SYST, clocks);
 
     // 6. Initialize the display interface and the display itself
-    let config = DisplayConfig::default();
+    let config = DisplayConfig::builder()
+        .with_orientation(Orientation::LandscapeRight)
+        .with_color_order(ColorOrder::Bgr)
+        .with_invert_colors(true)
+        .build();
+        
     let mut display = Display::new(spi, dc, rst, bl, config);
 
     // 7. Initialize the hardware and clear the screen
@@ -118,7 +124,13 @@ fn main() -> ! {
         .draw(&mut display)
         .unwrap();
 
-    loop {}
+    loop {
+        // Can utilize sleep modes to save power
+        // delay.delay_ms(5000);
+        // display.sleep(&mut delay).unwrap();
+        // delay.delay_ms(5000);
+        // display.wake(&mut delay).unwrap();
+    }
 }
 ```
 

@@ -84,7 +84,7 @@ where
         ).map_err(Error::Pin)?;
 
         // 2. Vendor Bytecode Init
-        crate::init::run_vendor_init(&mut self.iface)?;
+        crate::init::run_vendor_init(&mut self.iface, delay)?;
 
         // 3. Configure MADCTL (Orientation + Color Order)
         let madctl = self.config.orientation.madctl_bits() | self.config.color_order.bgr_bit();
@@ -108,6 +108,33 @@ where
         // 7. Display ON
         self.iface.send_command(crate::commands::DISPON)?;
 
+        Ok(())
+    }
+
+    /// Puts the display into sleep mode, turning off the panel and reducing power consumption.
+    pub fn sleep<D>(&mut self, delay: &mut D) -> Result<(), Error<SPI::Error, DC::Error>>
+    where
+        D: DelayNs,
+    {
+        crate::backlight::set_backlight(&mut self.bl, false).map_err(Error::Pin)?;
+        self.iface.send_command(crate::commands::DISPOFF)?;
+        self.iface.send_command(crate::commands::SLPIN)?;
+        // Wait required 120ms before sending any further commands after SLPIN.
+        delay.delay_ms(120);
+        Ok(())
+    }
+
+    /// Wakes the display from sleep mode and turns the panel back on.
+    pub fn wake<D>(&mut self, delay: &mut D) -> Result<(), Error<SPI::Error, DC::Error>>
+    where
+        D: DelayNs,
+    {
+        self.iface.send_command(crate::commands::SLPOUT)?;
+        delay.delay_ms(self.config.slpout_wait_ms);
+        self.iface.send_command(crate::commands::DISPON)?;
+        if self.config.backlight_on_after_init {
+            crate::backlight::set_backlight(&mut self.bl, true).map_err(Error::Pin)?;
+        }
         Ok(())
     }
 }
